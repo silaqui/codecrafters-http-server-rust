@@ -38,6 +38,19 @@ fn handle_connection(mut _stream: TcpStream) {
 
     if path == "/" {
         _stream.write("HTTP/1.1 200 OK\r\n\r\n".as_bytes()).unwrap();
+    } else if path.starts_with("/echo") {
+        let str = path.split_at(6).1;
+        println!("Str: {}", str);
+
+        let body_length = str.len();
+
+        let mut response =
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ".to_owned();
+        response.push_str(&*body_length.to_string());
+        response.push_str("\r\n\r\n");
+        response.push_str(str);
+
+        _stream.write(response.as_bytes()).unwrap();
     } else {
         _stream.write("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes()).unwrap();
     }
