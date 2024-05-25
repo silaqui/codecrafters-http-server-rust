@@ -1,3 +1,4 @@
+use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -87,10 +88,16 @@ fn delay(_stream: &mut TcpStream) {
 }
 
 fn files(_stream: &mut TcpStream, path: &str) {
-    let dir = path.split_at(8).1;
-    println!("File: {}", dir);
 
-    match File::open(dir) {
+    let env_args: Vec<String> = env::args().collect();
+    println!("Env args : {:?}", env_args);
+    let dir = env_args[2].clone();
+    println!("dir : {:?}", dir);
+
+    let filename = path.split_at(7).1;
+    println!("File: {}", filename);
+
+    match File::open(dir +"/" +  filename) {
         Ok(mut file) => {
             let buffer = &mut String::new();
 
