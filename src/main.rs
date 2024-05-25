@@ -1,5 +1,7 @@
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
+use std::thread::sleep;
+use std::time::Duration;
 
 fn main() {
     println!("Logs from your program will appear here!");
@@ -10,7 +12,7 @@ fn main() {
         match stream {
             Ok(_stream) => {
                 println!("accepted new connection");
-                handle_connection(_stream);
+                std::thread::spawn(||handle_connection(_stream));
             }
             Err(e) => {
                 println!("error: {}", e);
@@ -26,26 +28,25 @@ fn handle_connection(mut _stream: TcpStream) {
         .take_while(|line| !line.is_empty())
         .collect();
 
-    println!("Request : \r\n {:?}", request);
+    // println!("Request : \r\n {:?}", request);
 
     let mut req_iterator = request.iter();
 
     let mut first_line = req_iterator.nth(0).unwrap().split_whitespace();
-    let method = first_line.nth(0).unwrap();
-    println!("Method: {} ", method);
+    let _method = first_line.nth(0).unwrap();
+    // println!("Method: {} ", method);
     let path = first_line.nth(0).unwrap();
-    println!("Path: {} ", path);
-    let http_version = first_line.nth(0).unwrap();
-    println!("HttpV: {} ", http_version);
-
+    // println!("Path: {} ", path);
+    let _http_version = first_line.nth(0).unwrap();
+    // println!("HttpV: {} ", http_version);
     let headers : Vec<_> = req_iterator.take_while(|line| *line != "\r\n").collect();
-    println!("Headers: {:?} ", headers);
+    // println!("Headers: {:?} ", headers);
 
     if path == "/" {
         _stream.write("HTTP/1.1 200 OK\r\n\r\n".as_bytes()).unwrap();
     } else if path.starts_with("/echo") {
         let str = path.split_at(6).1;
-        println!("Str: {}", str);
+        println!("Echo: {}", str);
 
         let response = return_body(str);
 
@@ -58,6 +59,11 @@ fn handle_connection(mut _stream: TcpStream) {
         let response = return_body(str);
 
         _stream.write(response.as_bytes()).unwrap();
+    } else if path.starts_with("/delay"){
+        println!("Waiting Starts");
+        sleep(Duration::from_secs(5));
+        println!("Waiting Ends");
+        _stream.write("HTTP/1.1 200 OK\r\n\r\n".as_bytes()).unwrap();
     } else {
         _stream.write("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes()).unwrap();
     }
