@@ -97,7 +97,7 @@ fn files(_stream: &mut TcpStream, path: &str) {
     let filename = path.split_at(7).1;
     println!("File: {}", filename);
 
-    match File::open(dir +"/" +  filename) {
+    match File::open(dir +  filename) {
         Ok(mut file) => {
             let buffer = &mut String::new();
 
