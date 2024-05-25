@@ -104,7 +104,7 @@ fn files(_stream: &mut TcpStream, path: &str) {
             match file.read_to_string(buffer) {
                 Ok(size) => {
                     let mut response =
-                        "HTTP/1.1 200 OK\r\nContent-Type: octet-stream\r\nContent-Length: ".to_owned();
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: ".to_owned();
                     response.push_str(&*size.to_string());
                     response.push_str("\r\n\r\n");
                     response.push_str(buffer);
