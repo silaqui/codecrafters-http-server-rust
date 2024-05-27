@@ -139,7 +139,7 @@ fn files(_stream: &mut TcpStream, path: &str) {
                 }
             }
 
-            _stream.write("HTTP/1.1 200 Not Found\r\n\r\n".as_bytes()).unwrap();
+            _stream.write("HTTP/1.1 200 OK\r\n\r\n".as_bytes()).unwrap();
         }
         Err(_) => {
             _stream.write("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes()).unwrap();
@@ -158,7 +158,7 @@ fn files_save(_stream: &mut TcpStream, path: &str, body: Vec<u8>) {
 
     let mut file = File::create(dir + filename).unwrap();
     file.write_all(body.as_slice()).unwrap();
-    _stream.write("HTTP/1.1 200 Not Found\r\n\r\n".as_bytes()).unwrap();
+    _stream.write("HTTP/1.1 201 Created\r\n\r\n".as_bytes()).unwrap();
 }
 
 fn not_found(_stream: &mut TcpStream) {
