@@ -23,39 +23,64 @@ fn main() {
     }
 }
 
-fn handle_connection(mut _stream: TcpStream) {
-    let buffer = BufReader::new(&mut _stream);
-    let request: Vec<_> = buffer.lines().map(|result| result
-        .unwrap())
-        .take_while(|line| !line.is_empty())
-        .collect();
+fn handle_connection(mut stream: TcpStream) {
+    let mut buffer = BufReader::new(&mut stream);
 
-    // println!("Request : \r\n {:?}", request);
+    let mut request: Vec<String> = vec![];
+
+    loop {
+        let mut temp = String::new();
+        let r = buffer.read_line(&mut temp).unwrap();
+        if r < 3 { //detect empty line
+            break;
+        }
+        request.push(temp);
+    }
 
     let mut req_iterator = request.iter();
 
     let mut first_line = req_iterator.nth(0).unwrap().split_whitespace();
     let _method = first_line.nth(0).unwrap();
-    // println!("Method: {} ", method);
+    println!("Method: {} ", _method);
     let path = first_line.nth(0).unwrap();
-    // println!("Path: {} ", path);
+    println!("Path: {} ", path);
     let _http_version = first_line.nth(0).unwrap();
-    // println!("HttpV: {} ", http_version);
+    println!("HttpV: {} ", _http_version);
     let headers: Vec<_> = req_iterator.take_while(|line| *line != "\r\n").collect();
-    // println!("Headers: {:?} ", headers);
+    println!("Headers: {:?} ", headers);
+
+    let body = match headers.iter().rfind(|it| it.starts_with("Content-Length")) {
+        None => None,
+        Some(size) => {
+            let size = size.split(":").nth(1).unwrap().trim().parse::<usize>().unwrap(); //Get Content-Length
+            println!("Content-Length: {}", size);
+            let mut body = vec![0; size];
+            buffer.read_exact(&mut body).unwrap();
+            println!("Body: {:?} ", body);
+            Some(body)
+        }
+    };
+
+    if body.is_some() {
+        println!("Have body: {:?}", body)
+    }
 
     if path == "/" {
-        index(&mut _stream);
+        index(&mut stream);
     } else if path.starts_with("/echo") {
-        echo(&mut _stream, path);
+        echo(&mut stream, path);
     } else if path.starts_with("/user-agent") {
-        user_agent(&mut _stream, headers);
+        user_agent(&mut stream, headers);
     } else if path.starts_with("/delay") {
-        delay(&mut _stream);
+        delay(&mut stream);
     } else if path.starts_with("/files") {
-        files(&mut _stream, path);
+        if _method == "GET" {
+            files(&mut stream, path);
+        } else {
+            files_save(&mut stream, path, body.unwrap());
+        }
     } else {
-        not_found(&mut _stream);
+        not_found(&mut stream);
     }
 }
 
@@ -88,7 +113,6 @@ fn delay(_stream: &mut TcpStream) {
 }
 
 fn files(_stream: &mut TcpStream, path: &str) {
-
     let env_args: Vec<String> = env::args().collect();
     println!("Env args : {:?}", env_args);
     let dir = env_args[2].clone();
@@ -97,7 +121,7 @@ fn files(_stream: &mut TcpStream, path: &str) {
     let filename = path.split_at(7).1;
     println!("File: {}", filename);
 
-    match File::open(dir +  filename) {
+    match File::open(dir + filename) {
         Ok(mut file) => {
             let buffer = &mut String::new();
 
@@ -121,6 +145,20 @@ fn files(_stream: &mut TcpStream, path: &str) {
             _stream.write("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes()).unwrap();
         }
     };
+}
+
+fn files_save(_stream: &mut TcpStream, path: &str, body: Vec<u8>) {
+    let env_args: Vec<String> = env::args().collect();
+    println!("Env args : {:?}", env_args);
+    let dir = env_args[2].clone();
+    println!("dir : {:?}", dir);
+
+    let filename = path.split_at(7).1;
+    println!("File: {}", filename);
+
+    let mut file = File::create(dir + filename).unwrap();
+    file.write_all(body.as_slice()).unwrap();
+    _stream.write("HTTP/1.1 200 Not Found\r\n\r\n".as_bytes()).unwrap();
 }
 
 fn not_found(_stream: &mut TcpStream) {
