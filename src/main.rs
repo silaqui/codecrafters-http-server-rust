@@ -99,7 +99,7 @@ fn echo(_stream: &mut TcpStream, path: &str, headers: HashMap<String, String>) {
     let str = path.split_at(6).1;
     println!("Echo: {}", str);
 
-     let gzip_encoding = headers.get("Content-Encoding").map( |encoding| encoding == "gzip" ).unwrap_or(false);
+     let gzip_encoding = headers.get("Accept-Encoding").map( |encoding| encoding == "gzip" ).unwrap_or(false);
 
     let body_length = str.len();
     let mut response =
