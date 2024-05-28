@@ -5,6 +5,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::thread::sleep;
 use std::time::Duration;
+
 use itertools::Itertools;
 
 fn main() {
@@ -49,11 +50,11 @@ fn handle_connection(mut stream: TcpStream) {
         }
         let mut iter = temp
             .split(":")
-            .map(|s|s.trim());
-        let key = iter.nth(0).unwrap().to_owned() ;
-        let val = iter.nth(0).unwrap().to_owned() ;
+            .map(|s| s.trim());
+        let key = iter.nth(0).unwrap().to_owned();
+        let val = iter.nth(0).unwrap().to_owned();
 
-        headers.insert(key,val);
+        headers.insert(key, val);
     }
     println!("Headers: {:?} ", headers);
 
@@ -100,12 +101,18 @@ fn echo(_stream: &mut TcpStream, path: &str, headers: HashMap<String, String>) {
     let str = path.split_at(6).1;
     println!("Echo: {}", str);
 
-     let gzip_encoding = headers
-         .get("Accept-Encoding")
-         .map(|str|str.split(","))
-         .map(|mut split|split.contains(&"gzip"))
-         // .map( |encoding| encoding == "gzip" )
-         .unwrap_or(false);
+    let encoding = headers
+        .get("Accept-Encoding");
+    println!("Encoding: {:?}", encoding);
+
+    let gzip_encoding = headers
+        .get("Accept-Encoding")
+        .map(|str| str.split(",").map(|s|s.trim()))
+        .map(|mut split| split.contains(&"gzip"))
+        .unwrap_or(false);
+
+
+    println!("gzip_encoding: {:?}", gzip_encoding);
 
     let body_length = str.len();
     let mut response =
@@ -121,11 +128,9 @@ fn echo(_stream: &mut TcpStream, path: &str, headers: HashMap<String, String>) {
     response.push_str(str);
 
     _stream.write(response.as_bytes()).unwrap();
-
 }
 
 fn user_agent(_stream: &mut TcpStream, headers: HashMap<String, String>) {
-
     let str = headers.get("User-Agent").unwrap();
 
     let response = return_body(str);
