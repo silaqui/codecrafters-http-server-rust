@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -26,7 +27,18 @@ fn main() {
 fn handle_connection(mut stream: TcpStream) {
     let mut buffer = BufReader::new(&mut stream);
 
-    let mut request: Vec<String> = vec![];
+    let mut first_line = String::new();
+    buffer.read_line(&mut first_line).unwrap();
+
+    let mut first_line = first_line.split_whitespace();
+    let _method = first_line.nth(0).unwrap();
+    println!("Method: {} ", _method);
+    let path = first_line.nth(0).unwrap();
+    println!("Path: {} ", path);
+    let _http_version = first_line.nth(0).unwrap();
+    println!("HttpV: {} ", _http_version);
+
+    let mut headers = HashMap::new();
 
     loop {
         let mut temp = String::new();
@@ -34,25 +46,20 @@ fn handle_connection(mut stream: TcpStream) {
         if r < 3 { //detect empty line
             break;
         }
-        request.push(temp);
+        let mut iter = temp
+            .split(":")
+            .map(|s|s.trim());
+        let key = iter.nth(0).unwrap().to_owned() ;
+        let val = iter.nth(0).unwrap().to_owned() ;
+
+        headers.insert(key,val);
     }
-
-    let mut req_iterator = request.iter();
-
-    let mut first_line = req_iterator.nth(0).unwrap().split_whitespace();
-    let _method = first_line.nth(0).unwrap();
-    println!("Method: {} ", _method);
-    let path = first_line.nth(0).unwrap();
-    println!("Path: {} ", path);
-    let _http_version = first_line.nth(0).unwrap();
-    println!("HttpV: {} ", _http_version);
-    let headers: Vec<_> = req_iterator.take_while(|line| *line != "\r\n").collect();
     println!("Headers: {:?} ", headers);
 
-    let body = match headers.iter().rfind(|it| it.starts_with("Content-Length")) {
+    let body = match headers.get("Content-Length") {
         None => None,
         Some(size) => {
-            let size = size.split(":").nth(1).unwrap().trim().parse::<usize>().unwrap(); //Get Content-Length
+            let size = size.parse::<usize>().unwrap(); //Get Content-Length
             println!("Content-Length: {}", size);
             let mut body = vec![0; size];
             buffer.read_exact(&mut body).unwrap();
@@ -68,7 +75,7 @@ fn handle_connection(mut stream: TcpStream) {
     if path == "/" {
         index(&mut stream);
     } else if path.starts_with("/echo") {
-        echo(&mut stream, path);
+        echo(&mut stream, path, headers);
     } else if path.starts_with("/user-agent") {
         user_agent(&mut stream, headers);
     } else if path.starts_with("/delay") {
@@ -88,17 +95,32 @@ fn index(_stream: &mut TcpStream) {
     _stream.write("HTTP/1.1 200 OK\r\n\r\n".as_bytes()).unwrap();
 }
 
-fn echo(_stream: &mut TcpStream, path: &str) {
+fn echo(_stream: &mut TcpStream, path: &str, headers: HashMap<String, String>) {
     let str = path.split_at(6).1;
     println!("Echo: {}", str);
 
-    let response = return_body(str);
+     let gzip_encoding = headers.get("Content-Encoding").map( |encoding| encoding == "gzip" ).unwrap_or(false);
+
+    let body_length = str.len();
+    let mut response =
+        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n".to_owned();
+
+    if gzip_encoding {
+        response.push_str("Content-Encoding: gzip\r\n");
+    }
+
+    response.push_str("Content-Length: ");
+    response.push_str(&*body_length.to_string());
+    response.push_str("\r\n\r\n");
+    response.push_str(str);
+
     _stream.write(response.as_bytes()).unwrap();
+
 }
 
-fn user_agent(_stream: &mut TcpStream, headers: Vec<&String>) {
-    let ue = headers.iter().find(|h| h.starts_with("User-Agent:")).unwrap();
-    let str = ue.split_whitespace().nth(1).unwrap();
+fn user_agent(_stream: &mut TcpStream, headers: HashMap<String, String>) {
+
+    let str = headers.get("User-Agent").unwrap();
 
     let response = return_body(str);
     _stream.write(response.as_bytes()).unwrap();
