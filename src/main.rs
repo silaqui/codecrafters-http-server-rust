@@ -8,6 +8,10 @@ use std::time::Duration;
 
 use itertools::Itertools;
 
+use flate2::Compression;
+use flate2::write::GzEncoder;
+use nom::AsBytes;
+
 fn main() {
     println!("Logs from your program will appear here!");
 
@@ -114,22 +118,43 @@ fn echo(_stream: &mut TcpStream, path: &str, headers: HashMap<String, String>) {
 
     println!("gzip_encoding: {:?}", gzip_encoding);
 
-    let body_length = str.len();
     let mut response =
         "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n".to_owned();
 
     if gzip_encoding {
         response.push_str("Content-Encoding: gzip\r\n");
+
+        let mut encoder = GzEncoder::new(vec![], Compression::default());
+        encoder.write_all(str.as_bytes()).unwrap();
+        let compressed_buf = encoder.finish().unwrap();
+
+        response.push_str("Content-Length: ");
+        let body_length = compressed_buf.len();
+        response.push_str(&*body_length.to_string());
+        response.push_str("\r\n\r\n");
+
+        let a = response.as_bytes();
+
+        let b = compressed_buf.as_bytes();
+
+        let c = concat_u8(a,b);
+
+        _stream.write(&c).unwrap();
+
+    } else {
+        response.push_str("Content-Length: ");
+        let body_length = str.len();
+        response.push_str(&*body_length.to_string());
+        response.push_str("\r\n\r\n");
+        response.push_str(str);
+        _stream.write(response.as_bytes()).unwrap();
     }
 
-    response.push_str("Content-Length: ");
-    response.push_str(&*body_length.to_string());
-    response.push_str("\r\n\r\n");
-    response.push_str(str);
-
-    _stream.write(response.as_bytes()).unwrap();
 }
 
+pub fn concat_u8(first: &[u8], second: &[u8]) -> Vec<u8> {
+    [first, second].concat()
+}
 fn user_agent(_stream: &mut TcpStream, headers: HashMap<String, String>) {
     let str = headers.get("User-Agent").unwrap();
 
