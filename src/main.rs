@@ -5,6 +5,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::thread::sleep;
 use std::time::Duration;
+use itertools::Itertools;
 
 fn main() {
     println!("Logs from your program will appear here!");
@@ -99,7 +100,12 @@ fn echo(_stream: &mut TcpStream, path: &str, headers: HashMap<String, String>) {
     let str = path.split_at(6).1;
     println!("Echo: {}", str);
 
-     let gzip_encoding = headers.get("Accept-Encoding").map( |encoding| encoding == "gzip" ).unwrap_or(false);
+     let gzip_encoding = headers
+         .get("Accept-Encoding")
+         .map(|str|str.split(","))
+         .map(|mut split|split.contains(&"gzip"))
+         // .map( |encoding| encoding == "gzip" )
+         .unwrap_or(false);
 
     let body_length = str.len();
     let mut response =
